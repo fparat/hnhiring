@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+"""
+Fetch the comments of a Hacker News story. Useful for "Who is hiring" posts.
+"""
+
 import re
 import sys
 import html
@@ -58,22 +62,27 @@ def validate_comment(text, regex):
 
 
 async def main(story_id, output, *, regex=None, num=None, jobs=10):
+    # Setup global semaphore for force-limiting concurrent downloads
     global sem
     sem = asyncio.Semaphore(jobs)
 
+    # Download post page
     eprint(f"Scraping id {story_id}...")
     story = await download_id(story_id)
     eprint(story["title"])
     eprint(f"Expecting {len(story['kids'])} jobs")
 
+    # Select comments ids
     targets = story["kids"]
     if num is not None:
         targets = targets[: int(num)]
 
+    # Download the comments asynchronously
     tasks = [asyncio.create_task(download_comment(kid_id)) for kid_id in targets]
     comments = await asyncio.gather(*tasks)
     eprint(f"Scraped {len(comments)} comments")
 
+    # Format and filter the comments
     processed = []
     for comment in comments:
         formatted = format_comment(comment)
@@ -82,6 +91,7 @@ async def main(story_id, output, *, regex=None, num=None, jobs=10):
 
     eprint(f"Selected {len(processed)} comments")
 
+    # Write the selected comments
     result = SEP.join(processed)
     if output == "-":
         print(result)
@@ -92,9 +102,7 @@ async def main(story_id, output, *, regex=None, num=None, jobs=10):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        description='Fetch the comments of a Hacker News story. Useful for "Who is hiring" posts.'
-    )
+    parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
         "id", nargs="?", default="24038520", help="Item ID of the story"
