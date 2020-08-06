@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
+import re
 import sys
 import html
 import json
@@ -49,7 +50,11 @@ def format_comment(comment):
     return formatted
 
 
-async def main(story_id, output, *, num=None, jobs=10):
+def validate_comment(text, regex):
+    return regex is None or re.search(regex, text, re.I | re.S) is not None
+
+
+async def main(story_id, output, *, regex=None, num=None, jobs=10):
     global sem
     sem = asyncio.Semaphore(jobs)
 
@@ -66,7 +71,15 @@ async def main(story_id, output, *, num=None, jobs=10):
     comments = await asyncio.gather(*tasks)
     eprint(f"Scraped {len(comments)} comments")
 
-    result = SEP.join(format_comment(c) for c in comments)
+    processed = []
+    for comment in comments:
+        formatted = format_comment(comment)
+        if validate_comment(formatted, regex):
+            processed.append(formatted)
+
+    eprint(f"Selected {len(processed)} comments")
+
+    result = SEP.join(processed)
     if output == "-":
         print(result)
     else:
@@ -79,6 +92,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Fetch the comments of a Hacker News story. Useful for "Who is hiring" posts.'
     )
+
     parser.add_argument(
         "id", nargs="?", default="24038520", help="Item ID of the story"
     )
@@ -92,7 +106,14 @@ def parse_args():
     )
 
     parser.add_argument(
-        "-n", "--num", default=None, help="Number of comments to download"
+        "-n", "--num", help="Number of comments to download"
+    )
+
+    parser.add_argument(
+        "-r",
+        "--regex",
+        help="Regex applied to items content for filtering, using"
+        " Python syntax and flags re.IGNORECASE and re.DOTALL",
     )
 
     return parser.parse_args()
@@ -100,4 +121,6 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(main(args.id, args.output, num=args.num, jobs=args.jobs))
+    asyncio.run(
+        main(args.id, args.output, regex=args.regex, num=args.num, jobs=args.jobs)
+    )
