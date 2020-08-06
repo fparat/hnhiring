@@ -77,27 +77,29 @@ async def main(story_id, output, *, regex=None, num=None, jobs=10):
     if num is not None:
         targets = targets[: int(num)]
 
+    # Define a wrapper function for processing comments when ready
+    async def download_process_comment(item_id):
+        comment = await download_comment(item_id)
+        formatted = format_comment(comment)
+        if validate_comment(formatted, regex):
+            if output == "-":
+                print(SEP + formatted)
+            return formatted
+        else:
+            return None
+
     # Download the comments asynchronously
-    tasks = [asyncio.create_task(download_comment(kid_id)) for kid_id in targets]
+    tasks = [asyncio.create_task(download_process_comment(kid)) for kid in targets]
     comments = await asyncio.gather(*tasks)
     eprint(f"Scraped {len(comments)} comments")
 
-    # Format and filter the comments
-    processed = []
-    for comment in comments:
-        formatted = format_comment(comment)
-        if validate_comment(formatted, regex):
-            processed.append(formatted)
-
-    eprint(f"Selected {len(processed)} comments")
+    selected = list(filter(None, comments))
+    eprint(f"Selected {len(selected)} comments")
 
     # Write the selected comments
-    result = SEP.join(processed)
-    if output == "-":
-        print(result)
-    else:
+    if output != "-":
         with open(output, "w", encoding="utf-8") as o:
-            o.write(result)
+            o.write(SEP.join(selected))
         eprint(f"Written to {output}")
 
 
