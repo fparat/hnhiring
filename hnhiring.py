@@ -13,12 +13,15 @@ import urllib.request
 HN_TEMPLATE = " https://hacker-news.firebaseio.com/v0/item/{}.json"
 SEP = "\n" + ("-" * 80) + "\n"
 
+verbose = False
+
 # asyncio Semaphore for limiting concurrency. Must be initialized "inside" async.run
 sem = None
 
 
 def eprint(*args, **kwargs):
-    print(*args, **kwargs, file=sys.stderr, flush=True)
+    if verbose:
+        print(*args, **kwargs, file=sys.stderr, flush=True)
 
 
 async def download_id(item_id) -> dict:
@@ -105,9 +108,7 @@ def parse_args():
         "-j", "--jobs", type=int, default=10, help="Max concurrent download"
     )
 
-    parser.add_argument(
-        "-n", "--num", help="Number of comments to download"
-    )
+    parser.add_argument("-n", "--num", help="Number of comments to download")
 
     parser.add_argument(
         "-r",
@@ -116,11 +117,16 @@ def parse_args():
         " Python syntax and flags re.IGNORECASE and re.DOTALL",
     )
 
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable status output to stderr"
+    )
+
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    verbose = args.verbose
     asyncio.run(
         main(args.id, args.output, regex=args.regex, num=args.num, jobs=args.jobs)
     )
