@@ -58,7 +58,7 @@ def format_comment(comment):
 
 
 def validate_comment(text, regex):
-    return regex is None or re.search(regex, text, re.I | re.S) is not None
+    return regex is None or all(re.search(r, text, re.I | re.S) is not None for r in regex)
 
 
 async def main(story_id, output, *, regex=None, num=None, jobs=10):
@@ -123,8 +123,10 @@ def parse_args():
     parser.add_argument(
         "-r",
         "--regex",
+        action="append",
         help="Regex applied to items content for filtering, using"
-        " Python syntax and flags re.IGNORECASE and re.DOTALL",
+        " Python syntax and flags re.IGNORECASE and re.DOTALL."
+        " If used multiple times, the checks and ANDed.",
     )
 
     parser.add_argument(
