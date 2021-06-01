@@ -31,7 +31,7 @@ def eprint(*args, **kwargs):
 async def download_id(item_id) -> dict:
     def sync_download():
         with urllib.request.urlopen(HN_TEMPLATE.format(item_id)) as f:
-            return json.load(f)
+            return json.load(f) or {}
 
     loop = asyncio.get_running_loop()
     async with sem:
